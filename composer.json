@@ -1,28 +1,29 @@
 {
-    "name": "rukavinamilan/kurento-client-php",
+    "name": "glavweb/kurento-client-php",
     "type": "library",
+    "version": "0.1.0",
     "description": "A PHP Kurento Client",
     "keywords": ["Kurento", "Client", "PHP"],
-    "homepage": "https://github.com/rukavinamilan/kurento-client-php",
+    "homepage": "https://github.com/glavweb/kurento-client-php",
     "license": "MIT",
     "authors": [
-    {
-        "name": "Milan Rukavina",
-        "email": "rukavinamilan@gmail.com"
-    }
-    ],    
+        {
+            "name": "Milan Rukavina",
+            "email": "rukavinamilan@gmail.com"
+        },
+        {
+            "name": "Sergey Zvyagintsev",
+            "email": "nitron.ru@gmail.com"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "MgKurentoClient\\": "src/MgKurentoClient"
         }
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/Devristo/phpws"
-        }
-    ],    
     "require": {
-        "devristo/phpws": "dev-master"
+        "ratchet/pawl": "^0.3.4",
+        "psr/log": "^1.1",
+        "ext-json": "*"
     }
 }

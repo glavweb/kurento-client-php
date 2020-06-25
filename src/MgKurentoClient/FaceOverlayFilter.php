@@ -10,14 +10,18 @@
 
 namespace MgKurentoClient;
 
-class FaceOverlayFilter extends MediaElement implements Interfaces\FaceOverlayFilter {
-    public function setOverlayedImage($uri, $offsetXPercent, $offsetYPercent, $widthPercent, $heightPercent, callable $callback){
-        $this->remoteInvoke('setOverlayedImage', array(
-            "uri"  => $uri,
-            "offsetXPercent"  => $offsetXPercent,
-            "offsetYPercent"  => $offsetYPercent,
-            "widthPercent"  => $widthPercent,
+use React\Promise\PromiseInterface;
+
+class FaceOverlayFilter extends MediaElement implements Interfaces\FaceOverlayFilter
+{
+    public function setOverlayedImage($uri, $offsetXPercent, $offsetYPercent, $widthPercent, $heightPercent): PromiseInterface
+    {
+        return $this->remoteInvoke('setOverlayedImage', [
+            "uri"            => $uri,
+            "offsetXPercent" => $offsetXPercent,
+            "offsetYPercent" => $offsetYPercent,
+            "widthPercent"   => $widthPercent,
             "heightPercent"  => $heightPercent
-        ), $callback);
-    }    
+        ]);
+    }
 }

@@ -10,6 +10,9 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface FaceOverlayFilter extends Filter {
-    public function setOverlayedImage($uri, $offsetXPercent, $offsetYPercent, $widthPercent, $heightPercent, callable $callback);
+use React\Promise\PromiseInterface;
+
+interface FaceOverlayFilter extends Filter
+{
+    public function setOverlayedImage($uri, $offsetXPercent, $offsetYPercent, $widthPercent, $heightPercent): PromiseInterface;
 }

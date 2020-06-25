@@ -10,12 +10,17 @@
 
 namespace MgKurentoClient;
 
-class PlayerEndpoint extends MediaElement implements Interfaces\PlayerEndpoint {
-    public function play(callable $callback){
-        $this->remoteInvoke('play', array(), $callback);
+use React\Promise\PromiseInterface;
+
+class PlayerEndpoint extends MediaElement implements Interfaces\PlayerEndpoint
+{
+    public function play(): PromiseInterface
+    {
+        return $this->remoteInvoke('play', []);
     }
-    
-    public function addEndOfStreamListener(callable $listener, callable $callback){
-        $this->remoteSubscribe('EndOfStream', $listener, $callback);
-    }    
+
+    public function addEndOfStreamListener(callable $listener): PromiseInterface
+    {
+        return $this->remoteSubscribe('EndOfStream', $listener);
+    }
 }

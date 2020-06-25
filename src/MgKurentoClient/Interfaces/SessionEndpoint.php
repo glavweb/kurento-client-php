@@ -10,5 +10,6 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface SessionEndpoint extends Endpoint {        
+interface SessionEndpoint extends Endpoint
+{
 }

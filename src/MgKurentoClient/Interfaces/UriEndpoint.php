@@ -10,5 +10,6 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface UriEndpoint extends Endpoint {        
+interface UriEndpoint extends Endpoint
+{
 }

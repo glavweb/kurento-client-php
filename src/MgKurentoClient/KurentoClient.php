@@ -11,69 +11,60 @@
 
 namespace MgKurentoClient;
 
+use Psr\Log\LoggerInterface;
+use React\EventLoop\LoopInterface;
+use React\Promise\PromiseInterface;
+
 /**
- * Factory to create {MediaPipeline} in the media server.
+ * KurentoClient
  *
  * @author Milan Rukavina
  */
-class KurentoClient {
-    
-    /**
-     *
-     * @var KurentoClient 
-     */
-    protected static $instance;
-    
+class KurentoClient
+{
+
     /**
      *
      * @var JsonRpc\Client;
      */
     private $jsonRpc = null;
-    
-    /**
-     *
-     * @var \MgKurentoClient\MediaPipeline 
-     */
-    private $pipeline = null;
-    
+
+
     private $logger = null;
-    
-    private function __construct($websocketUrl, $loop, $logger, callable $callback) {
-        $this->logger = $logger;
-        $this->jsonRpc = new JsonRpc\Client($websocketUrl, $loop, $this->logger, $callback);
+
+    /**
+     * KurentoClient constructor.
+     *
+     * @param string $websocketUrl
+     * @param LoopInterface $loop
+     * @param LoggerInterface $logger
+     */
+    public function __construct($websocketUrl, $loop, $logger)
+    {
+        $this->logger  = $logger;
+        $this->jsonRpc = new JsonRpc\Client($websocketUrl, $loop, $this->logger);
     }
-    
+
     /**
      * Creates Client object
-     * 
-     * @param string $websocketUrl
-     * @param LibEventLoop|LibEvLoop|ExtEventLoop|StreamSelectLoop $loop
-     * @param \Zend\Log\Logger $logger
-     * 
-     * @return KurentoClient 
+     *
+     * @return PromiseInterface
      */
-    public static function create($websocketUrl, $loop, $logger, callable $callback) {
-        if(!isset(self::$instance)){
-            self::$instance = new self($websocketUrl, $loop, $logger, function() use ($callback){
-                $callback(self::$instance);
-            });
-        }
-        return self::$instance;
+    public function connect(): PromiseInterface
+    {
+        return $this->jsonRpc->connect()->then(function () {
+            return $this;
+        });
     }
 
     /**
      * Creates a new {MediaPipeline} in the media server
-     * 
-     * @param callable $callback
      *
-     * @return Interfaces\MediaPipeline
+     * @param array $params
+     * @return PromiseInterface
      */
-    public function createMediaPipeline(callable $callback) {        
-        $this->pipeline = new MediaPipeline($this->jsonRpc);        
-        $this->pipeline->build(function($success, $data) use ($callback){
-            $callback($this->pipeline, $success, $data);
-        });
-        return $this->pipeline;
+    public function createMediaPipeline(array $params = []): PromiseInterface
+    {
+        return (new MediaPipeline($this->jsonRpc))->build($params);
     }
-
 }

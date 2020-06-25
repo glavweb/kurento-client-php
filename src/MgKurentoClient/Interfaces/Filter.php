@@ -10,5 +10,6 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface Filter extends MediaElement {        
+interface Filter extends MediaElement
+{
 }

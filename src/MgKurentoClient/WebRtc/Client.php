@@ -10,86 +10,144 @@
 
 namespace MgKurentoClient\WebRtc;
 
+use Evenement\EventEmitter;
+use Exception;
+use Psr\Log\LoggerInterface;
+use Ratchet\Client\Connector;
+use Ratchet\Client\WebSocket;
+use Ratchet\RFC6455\Messaging\Frame;
+use Ratchet\RFC6455\Messaging\MessageInterface;
+use React\EventLoop\LoopInterface;
+use React\Promise\PromiseInterface;
+
 /**
  * Websocket transport layer implementation
- * 
- * @author Milan Rukavina 
+ *
+ * @author Milan Rukavina
  */
-class Client {
-    
+class Client extends EventEmitter
+{
+
     /**
-     *
-     * @var \Devristo\Phpws\Client\WebSocket 
+     * @var LoopInterface
      */
-    private $client = null;
     private $loop = null;
+
+    /**
+     * @var LoggerInterface
+     */
     private $logger = null;
+
+    /**
+     * @var string
+     */
+    private $websocketUrl;
+
+    /**
+     * @var WebSocket
+     */
+    private $connection = null;
+
+
+    /**
+     * @var bool
+     */
+    private $connecting = false;
 
 
     /**
      *
      * Constructor
+     *
+     * @param string $websocketUrl
+     * @param LoopInterface $loop
+     * @param LoggerInterface $logger
      */
-    public function  __construct($websocketUrl, $loop, $logger)
+    public function __construct($websocketUrl, $loop, $logger)
     {
-        $this->logger = $logger;
-        $this->loop = $loop;
-        $this->client = new \Devristo\Phpws\Client\WebSocket($websocketUrl . '?encoding=text', $this->loop, $this->logger);
-        
-        //debug
-        $this->client->on("request", function($headers){            
-            $this->logger->notice("\nRequest object created!\n");
-        });
-
-        $this->client->on("handshake", function() {
-            $this->logger->notice("\nHandshake received!\n");
-        });
-
-        $this->client->on("connect", function(){
-            $this->logger->notice("\nConnected!\n");
-        });
-
-        $this->client->on("message", function($message){
-            $this->logger->notice("\nGot message: " . $message->getData());
-        });        
-      
-    }       
-    
-    /**
-     * Open WS connections 
-     */
-    public function open() {
-        $this->client->open();
+        $this->websocketUrl = $websocketUrl;
+        $this->loop         = $loop;
+        $this->logger       = $logger;
     }
-    
+
+    /**
+     * @return PromiseInterface
+     */
+    public function connect()
+    {
+        $this->connecting = true;
+        $connector        = new Connector($this->loop);
+
+        return $connector($this->websocketUrl . '?encoding=text')
+            ->then(function (WebSocket $connection) {
+                $this->logger->info("Connected");
+                $this->connection = $connection;
+                $this->emit('connect', [$connection]);
+                $this->connecting = false;
+
+                $connection->on('message', function (MessageInterface $msg) {
+                    $this->logger->debug("Got message: {$msg}");
+                    $this->emit('message', [$msg]);
+                });
+
+                $connection->on('close', function ($code = null, $reason = null) {
+                    $this->logger->info("Connection closed ({$code} - {$reason})");
+                    $this->emit('close', [$code, $reason]);
+                    if ($code === Frame::CLOSE_ABNORMAL) {
+                        $this->reconnect();
+                    }
+                });
+
+                $connection->on('error', function (MessageInterface $error) {
+                    $this->logger->error("Error: {$error}");
+                    $this->emit('error', [$error]);
+                });
+            }, function (Exception $e) {
+                $this->logger->error("Could not connect: {$e->getMessage()}");
+                $this->connection = null;
+                $this->reconnect();
+            });
+    }
+
     /**
      * Send message
-     * 
-     * @param string $message 
+     *
+     * @param string $message
      */
-    public function send($message){
-        $this->logger->notice("\nSending message: " . $message);
-        $this->client->send($message);
+    public function send($message)
+    {
+        if (!$this->connection) {
+            if (!$this->connecting) {
+                $this->connect();
+            }
+            $this->once('connect', function () use ($message) {
+                $this->_send($message);
+            });
+        } else {
+            $this->_send($message);
+        }
     }
-    
-    /**
-     * On message received callback
-     * 
-     * @param callable $callback 
-     */
-    public function onMessage(callable $callback){
-        $this->client->on("message", function($message) use ($callback){
-            $callback($message->getData());
-        });                
-    }
-    
-    /**
-     * On connect callback
-     * 
-     * @param callable $callback 
-     */
-    public function onConnect(callable $callback){
-        $this->client->on("connect", $callback);                
-    }    
 
+    private function reconnect(): void
+    {
+        $this->logger->info("Reconnect after 5 seconds");
+        $this->loop->addTimer(5, function () {
+            $this->logger->info("Reconnecting");
+            $this->connect();
+        });
+    }
+
+    /**
+     * @param string $message
+     */
+    private function _send(string $message): void
+    {
+        $this->logger->debug("Sending message: {$message}");
+        $this->connection->send($message);
+    }
+
+    public function isConnected(): bool
+    {
+        return $this->connection !== null;
+    }
 }

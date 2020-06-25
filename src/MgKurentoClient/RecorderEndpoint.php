@@ -10,8 +10,12 @@
 
 namespace MgKurentoClient;
 
-class RecorderEndpoint extends MediaElement implements Interfaces\RecorderEndpoint {
-    public function record(callable $callback){
-        $this->remoteInvoke('record', array(), $callback);
-    } 
+use React\Promise\PromiseInterface;
+
+class RecorderEndpoint extends MediaElement implements Interfaces\RecorderEndpoint
+{
+    public function record(): PromiseInterface
+    {
+        return $this->remoteInvoke('record', []);
+    }
 }

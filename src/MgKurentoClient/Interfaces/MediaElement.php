@@ -10,11 +10,15 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface MediaElement extends MediaObject {    
-    public function connect(MediaElement $sink, $callback);
+use React\Promise\PromiseInterface;
+
+interface MediaElement extends MediaObject
+{
+    public function connect(MediaElement $sink): PromiseInterface;
+
     public function addSource(MediaElement $source);
+
     public function getMediaSinks();
-    public function getMediaSrcs();
-    
-    
+
+    public function getMediaSources();
 }

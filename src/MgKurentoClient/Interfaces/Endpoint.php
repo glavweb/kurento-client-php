@@ -10,5 +10,6 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface Endpoint extends MediaElement {        
+interface Endpoint extends MediaElement
+{
 }

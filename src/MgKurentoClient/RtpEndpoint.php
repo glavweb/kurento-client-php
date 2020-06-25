@@ -10,5 +10,36 @@
 
 namespace MgKurentoClient;
 
-class RtpEndpoint extends MediaElement implements Interfaces\RtpEndpoint {    
+use React\Promise\PromiseInterface;
+use function React\Promise\reject;
+
+class RtpEndpoint extends MediaElement implements Interfaces\RtpEndpoint
+{
+    public function generateOffer()
+    {
+        // TODO: Implement generateOffer() method.
+    }
+
+    public function processAnswer($answer): PromiseInterface
+    {
+        // TODO: Implement processAnswer() method.
+        return reject();
+
+    }
+
+    public function processOffer($offer): PromiseInterface
+    {
+        // TODO: Implement processOffer() method.
+        return reject();
+    }
+
+    public function getLocalSessionDescriptor()
+    {
+        // TODO: Implement getLocalSessionDescriptor() method.
+    }
+
+    public function getRemoteSessionDescriptor()
+    {
+        // TODO: Implement getRemoteSessionDescriptor() method.
+    }
 }

@@ -10,11 +10,17 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface MediaObject {
-    public function build(callable $callback, array $params = array());
-    public function getId();    
+use React\Promise\PromiseInterface;
+
+interface MediaObject
+{
+    public function build(array $params = []): PromiseInterface;
+
+    public function release(): PromiseInterface;
+
+    public function getId();
+
     public function getMediaPipeline();
+
     public function getParent();
-    public function release(callable $callback);
-    
 }

@@ -10,6 +10,9 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface RecorderEndpoint  extends UriEndpoint {
-    public function record(callable $callback);
+use React\Promise\PromiseInterface;
+
+interface RecorderEndpoint extends UriEndpoint
+{
+    public function record(): PromiseInterface;
 }

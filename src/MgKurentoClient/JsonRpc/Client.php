@@ -10,179 +10,248 @@
 
 namespace MgKurentoClient\JsonRpc;
 
+use Psr\Log\LoggerInterface;
+use React\EventLoop\LoopInterface;
+use React\EventLoop\TimerInterface;
+use React\Promise\Deferred;
+use React\Promise\PromiseInterface;
+
 /**
  * JSON RPC implementation
- * 
+ *
  * @author Milan Rukavina
- *  
+ *
  */
-class Client{
+class Client
+{
+    protected $id = 0;
+
     /**
      *
-     * @var \MgKurentoClient\WebRtc\Client 
+     * @var \MgKurentoClient\WebRtc\Client
      */
     protected $wsClient;
-    protected $id = 0;
+
     protected $sessionId = null;
-    protected $callbacks = array();
-    protected $subscriptions = array();
+
+    protected $deferred = [];
+
+    protected $subscriptions = [];
+
     protected $logger = null;
-    
-    function __construct($websocketUrl, $loop, $logger, $callback) {
-        $this->logger = $logger;
+
+    /**
+     * @var LoopInterface
+     */
+    private $loop;
+
+    /**
+     * @var TimerInterface
+     */
+    private $pingTimer;
+
+    /**
+     * Client constructor.
+     *
+     * @param string $websocketUrl
+     * @param LoopInterface $loop
+     * @param LoggerInterface $logger
+     */
+    public function __construct($websocketUrl, $loop, $logger)
+    {
+        $this->loop     = $loop;
+        $this->logger   = $logger;
         $this->wsClient = new \MgKurentoClient\WebRtc\Client($websocketUrl, $loop, $this->logger);
-        $this->wsClient->open();
-        $this->wsClient->onMessage(function($data){
+        $this->wsClient->on('message', function ($data) {
             $this->receive(json_decode($data, true));
         });
-        $this->wsClient->onConnect($callback);        
+        $this->wsClient->once('connect', function () {
+            $this->startPing();
+        });
+    }
+
+    /**
+     * @return PromiseInterface
+     */
+    public function connect()
+    {
+        return $this->wsClient->connect();
+    }
+
+    /**
+     * Receive data
+     *
+     * @param array $data
+     * @return mixed
+     * @throws Exception
+     */
+    public function receive($data)
+    {
+        //set session
+        if (isset($data['result']['sessionId'])) {
+            $this->sessionId = $data['result']['sessionId'];
+        }
+        //onEvent?
+        if (isset($data['method']) && $data['method'] == 'onEvent') {
+            $value = $data['params']['value'];
+            $key   = $value['object'] . '__' . $value['type'];
+            if (isset($this->subscriptions[$key])) {
+                $onEvent = $this->subscriptions[$key]['callback'];
+                $onEvent($value['data']);
+            }
+
+            return;
+        }
+        /** @var Deferred $deferred */
+        if (array_key_exists('result', $data) && isset($data['id']) && isset($this->deferred[$data['id']])) {
+            $deferred = $this->deferred[$data['id']];
+            $deferred->resolve($data['result']);
+            unset($this->deferred[$data['id']]);
+
+            return;
+        }
+        if (isset($data['error']) && isset($data['id']) && isset($this->deferred[$data['id']])) {
+            $deferred = $this->deferred[$data['id']];
+            $deferred->reject($data['error']);
+            unset($this->deferred[$data['id']]);
+
+            return;
+        }
+
+        throw new Exception('Json deferred not found');
+    }
+
+    /**
+     * Create method
+     *
+     * @param string $type
+     * @param array $creationParams
+     * @return PromiseInterface
+     */
+    public function sendCreate($type, $creationParams): PromiseInterface
+    {
+        $message = [
+            'type' => $type
+        ];
+        if (isset($creationParams) && count($creationParams)) {
+            $message['constructorParams'] = $creationParams;
+        }
+
+        return $this->send('create', $message);
+    }
+
+    /**
+     * Invoke method
+     *
+     * @param string $object
+     * @param string $operation
+     * @param array $operationParams
+     * @return PromiseInterface
+     */
+    public function sendInvoke($object, $operation, $operationParams): PromiseInterface
+    {
+        return $this->send('invoke', [
+            'object'          => $object,
+            'operation'       => $operation,
+            'operationParams' => $operationParams
+        ]);
+    }
+
+    /**
+     * Release method
+     *
+     * @param string $object
+     * @return PromiseInterface
+     */
+    public function sendRelease($object): PromiseInterface
+    {
+        return $this->send('release', [
+            'object' => $object
+        ]);
+    }
+
+    /**
+     * Subscribe method
+     *
+     * @param string $object
+     * @param string $type
+     * @param string $onEvent
+     * @return PromiseInterface
+     */
+    public function sendSubscribe($object, $type, $onEvent): PromiseInterface
+    {
+        return $this->send('subscribe', [
+            'object' => $object,
+            'type'   => $type
+        ])
+            ->then(function ($data) use ($object, $type, $onEvent) {
+                $key                       = $object . '__' . $type;
+                $this->subscriptions[$key] = [
+                    'id'       => $data['value'],
+                    'callback' => $onEvent
+                ];
+
+                return $data['value'];
+            });
+    }
+
+    /**
+     * Unsubscribe method
+     *
+     * @param string $subscriptionId
+     * @return PromiseInterface
+     */
+    public function sendUnsubscribe($subscriptionId): PromiseInterface
+    {
+        return $this->send('unsubscribe', [
+            'subscription' => $subscriptionId
+        ])
+            ->then(function ($data) use ($subscriptionId) {
+                foreach ($this->subscriptions as $key => $subscription) {
+                    if ($subscription['id'] === $subscriptionId) {
+                        unset($this->subscriptions[$key]);
+                        break;
+                    }
+                }
+
+                return $data;
+            });
     }
 
     /**
      * Send method
-     * 
+     *
      * @param string $method
      * @param array $params
-     * @param callable $callback 
+     * @return PromiseInterface
      */
-    protected function send($method, $params, callable $callback){        
+    protected function send($method, $params): PromiseInterface
+    {
         $this->id++;
-        if(isset($this->sessionId)){
+        if (isset($this->sessionId)) {
             $params['sessionId'] = $this->sessionId;
         }
-        
-        $data = array(
-            "jsonrpc"   => "2.0",
-            "id"         => $this->id,
-            "method"    => $method,
-            "params"    => $params
-        );
+
+        $data = [
+            "jsonrpc" => "2.0",
+            "id"      => $this->id,
+            "method"  => $method,
+            "params"  => $params
+        ];
         $this->wsClient->send(json_encode($data, JSON_UNESCAPED_SLASHES));
-        $this->callbacks[$this->id] = $callback;
+
+        $deferred                  = new Deferred();
+        $this->deferred[$this->id] = $deferred;
+
+        return $deferred->promise();
     }
-    
-    /**
-     * Receive data
-     * 
-     * @param array $data
-     * @return mixed
-     * @throws \MgKurentoClient\JsonRpc\Exception 
-     */
-    public function receive($data){
-        //set sesstion 
-        if(isset($data['result']['sessionId'])){
-            $this->sessionId = $data['result']['sessionId'];
-        }
-        //onEvent?
-        if(isset($data['method']) && $data['method'] == 'onEvent'){
-            if(isset($this->subscriptions[$data['params']['value']['type']])){
-                $onEvent = $this->subscriptions[$data['params']['value']['type']];
-                $onEvent($data);
+
+    private function startPing()
+    {
+        $this->pingTimer = $this->loop->addPeriodicTimer(60, function () {
+            if ($this->wsClient->isConnected()) {
+                $this->send('ping', []);
             }
-            return;
-        }
-        if(array_key_exists('result',$data) && isset($data['id']) && isset($this->callbacks[$data['id']])){
-            $callback = $this->callbacks[$data['id']];
-            $callback(true, $data['result']);
-            unset($this->callbacks[$data['id']]);
-            return;
-        }
-        if(isset($data['error']) && isset($data['id']) && isset($this->callbacks[$data['id']])){
-            $callback = $this->callbacks[$data['id']];
-            $callback(false, $data['error']);
-            unset($this->callbacks[$data['id']]);
-            return;
-        }
-                
-        throw new \MgKurentoClient\JsonRpc\Exception('Json callback not found');
-    }    
-    
-    /**
-     * Create method
-     * 
-     * @param string $type
-     * @param array $creationParams
-     * @param callable $callback
-     * @return mixed 
-     */
-    public function sendCreate($type, $creationParams, callable $callback){        
-        $message = array(
-            'type'  => $type            
-        );
-        if(isset($creationParams) && count($creationParams)){
-            $message['constructorParams'] = $creationParams;
-        }
-        return $this->send('create', $message, $callback);
-    }
-    
-    /**
-     * Invoke method
-     * 
-     * @param string $object
-     * @param string $operation
-     * @param array $operationParams
-     * @param callable $callback
-     * @return mixed 
-     */
-    public function sendInvoke($object, $operation, $operationParams, callable $callback){
-        return $this->send('invoke', array(
-            'object'  => $object,
-            'operation' => $operation,
-            'operationParams'    => $operationParams
-        ), $callback);
-    }
-    
-    /**
-     * Release method
-     * 
-     * @param string $object
-     * @param callable $callback
-     * @return type 
-     */
-    public function sendRelease($object, callable $callback){
-        return $this->send('release', array(
-            'object'  => $object
-        ), $callback);
-    }
-    
-    /**
-     * Subscribe method
-     * 
-     * @param string $object
-     * @param string $type
-     * @param string $onEvent
-     * @param callable $callback
-     * @return mixed 
-     */
-    public function sendSubscribe($object, $type, $onEvent, callable $callback){
-        return $this->send('subscribe', array(
-            'object'  => $object,
-            'type'      => $type
-        ), function($success, $data) use($onEvent, $callback){
-            if(!$success){                
-                return false;                
-            }
-            $this->subscriptions[$data['value']] = $onEvent;
-            $callback($success, $data);            
         });
     }
-    
-    /**
-     * Unsubscribe method
-     * 
-     * @param string $subscription
-     * @param callable $callback
-     * @return mixed 
-     */
-    public function sendUnsubscribe($subscription, callable $callback){
-        return $this->send('unsubscribe', array(
-            'subscription'  => $subscription
-        ), function($success, $data) use ($subscription){
-            if(!$success){                
-                return false;                
-            }            
-            unset($this->subscriptions[$subscription]);
-            $callback($success, $data);
-        });
-    }    
 }

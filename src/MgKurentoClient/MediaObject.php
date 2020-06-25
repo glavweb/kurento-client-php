@@ -10,71 +10,90 @@
 
 namespace MgKurentoClient;
 
-class MediaObject implements Interfaces\MediaObject {
-    
-    protected $pipeline = null;
+use React\Promise\PromiseInterface;
+
+class MediaObject implements Interfaces\MediaObject
+{
     protected $id = null;
-    protected $subscriptions = array();
 
+    protected $pipeline = null;
 
-    function __construct(Interfaces\MediaPipeline $pipeline) {
+    public function __construct(Interfaces\MediaPipeline $pipeline)
+    {
         $this->pipeline = $pipeline;
     }
 
-    
-    public function getId(){
+    public function release(): PromiseInterface
+    {
+        return $this->remoteRelease();
+    }
+
+    public function build(array $params = []): PromiseInterface
+    {
+        return $this->remoteCreate($this->getRemoteTypeName(), $params)
+            ->then(function () {
+                return $this;
+            });
+    }
+
+    public function remoteCreate($remoteType, array $params = []): PromiseInterface
+    {
+        $localParams = ($this->pipeline === $this) ? [] : ['mediaPipeline' => $this->pipeline->getId()];
+
+        return $this->pipeline->getJsonRpc()
+            ->sendCreate($remoteType, array_merge($localParams, $params))
+            ->then(function ($data) {
+                if (isset($data['value'])) {
+                    $this->id = $data['value'];
+                }
+
+                return $data;
+            });
+    }
+
+    public function remoteInvoke($operation, $operationParams): PromiseInterface
+    {
+        return $this->pipeline->getJsonRpc()
+            ->sendInvoke($this->getId(), $operation, $operationParams);
+    }
+
+    public function remoteRelease(): PromiseInterface
+    {
+        return $this->pipeline->getJsonRpc()
+            ->sendRelease($this->getId());
+    }
+
+    public function remoteUnsubscribe($subscriptionId): PromiseInterface
+    {
+        return $this->pipeline->getJsonRpc()
+            ->sendUnsubscribe($subscriptionId);
+    }
+
+    public function remoteSubscribe($type, $onEvent): PromiseInterface
+    {
+        return $this->pipeline->getJsonRpc()
+            ->sendSubscribe($this->getId(), $type, $onEvent);
+    }
+
+    public function getId()
+    {
         return $this->id;
-    }    
-    
-    public function getMediaPipeline(){
+    }
+
+    public function getMediaPipeline()
+    {
         return $this->pipeline;
-        
     }
-    
-    public function getParent(){
-        
+
+    public function getParent()
+    {
     }
-    
-    public function release(callable $callback){
-        $this->remoteRelease($callback);        
-    }
-    
-    protected function getRemoteTypeName(){
+
+    protected function getRemoteTypeName()
+    {
         $fullName = get_class($this);
-        $parts = explode("\\", $fullName);
+        $parts    = explode("\\", $fullName);
+
         return $parts[count($parts) - 1];
     }
-    
-    public function build(callable $callback, array $params = array()){
-        $this->remoteCreate($this->getRemoteTypeName(), function($success, $data) use($callback){
-            $callback($this, $success, $data);
-        }, $params);
-    }     
-    
-    public function remoteCreate($remoteType, callable $callback, array $params = array()){
-        $localParams = ($this->pipeline == $this)? array(): array('mediaPipeline'  => $this->pipeline->getId());        
-        $this->pipeline->getJsonRpc()->sendCreate($remoteType, array_merge($localParams, $params), function($success, $data) use($callback){
-            if($success && isset($data['value'])){
-                $this->id = $data['value'];
-            }
-            $callback($success, $data);
-        });
-    }    
-    
-    public function remoteInvoke($operation, $operationParams, callable $callback){
-        $this->pipeline->getJsonRpc()->sendInvoke($this->getId(), $operation, $operationParams, $callback);
-    }
-    
-    public function remoteRelease(callable $callback){
-        $this->pipeline->getJsonRpc()->sendRelease($this->getId(), $callback);
-    }
-    
-    protected function remoteSubscribe($type, $onEvent, callable $callback){
-        $this->pipeline->getJsonRpc()->sendSubscribe($this->getId(), $type, $onEvent, $callback);
-    }
-    
-    public function remoteUnsubscribe($subscription, callable $callback){
-        $this->pipeline->getJsonRpc()->sendUnsubscribe($subscription, $callback);
-    }    
-    
 }

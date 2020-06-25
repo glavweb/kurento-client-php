@@ -10,31 +10,37 @@
 
 namespace MgKurentoClient;
 
-class MediaElement extends MediaObject implements Interfaces\MediaElement {
-    
-    protected $sinks = array();
-    protected $sources = array();
-        
-    public function connect(Interfaces\MediaElement $sink, $callback){
-        $this->remoteInvoke('connect', array('sink' => $sink->getId()), function($success, $data) use ($callback, $sink){
-            if($success){
+use React\Promise\PromiseInterface;
+
+class MediaElement extends MediaObject implements Interfaces\MediaElement
+{
+    protected $sinks = [];
+
+    protected $sources = [];
+
+    public function connect(Interfaces\MediaElement $sink): PromiseInterface
+    {
+        return $this->remoteInvoke('connect', ['sink' => $sink->getId()])
+            ->then(function ($data) use ($sink) {
                 $this->sinks[] = $sink;
-                $sink->addSource($this);                
-            }
-            $callback($success, $data);
-        });
+                $sink->addSource($this);
+
+                return $data;
+            });
     }
-    
-    public function addSource(Interfaces\MediaElement $source){
+
+    public function addSource(Interfaces\MediaElement $source)
+    {
         $this->sources[] = $source;
     }
-    
-    public function getMediaSinks(){
+
+    public function getMediaSinks()
+    {
         return $this->sinks;
     }
-    
-    public function getMediaSrcs(){
+
+    public function getMediaSources()
+    {
         return $this->sources;
     }
-    
 }

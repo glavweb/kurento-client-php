@@ -10,5 +10,6 @@
 
 namespace MgKurentoClient\Interfaces;
 
-interface RtpEndpoint extends SdpEndpoint {        
+interface RtpEndpoint extends SdpEndpoint
+{
 }
