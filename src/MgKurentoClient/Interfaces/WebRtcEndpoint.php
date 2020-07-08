@@ -10,11 +10,11 @@
 
 namespace MgKurentoClient\Interfaces;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 interface WebRtcEndpoint extends SdpEndpoint
 {
-    public function gatherCandidates(): PromiseInterface;
+    public function gatherCandidates(): Promise;
 
-    public function addIceCandidate($candidate): PromiseInterface;
+    public function addIceCandidate($candidate): Promise;
 }

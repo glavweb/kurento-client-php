@@ -10,13 +10,13 @@
 
 namespace MgKurentoClient\Interfaces;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 interface MediaObject
 {
-    public function build(array $params = []): PromiseInterface;
+    public function build(array $params = []): Promise;
 
-    public function release(): PromiseInterface;
+    public function release(): Promise;
 
     public function getId();
 

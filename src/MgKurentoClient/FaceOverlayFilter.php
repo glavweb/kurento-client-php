@@ -10,11 +10,11 @@
 
 namespace MgKurentoClient;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 class FaceOverlayFilter extends MediaElement implements Interfaces\FaceOverlayFilter
 {
-    public function setOverlayedImage($uri, $offsetXPercent, $offsetYPercent, $widthPercent, $heightPercent): PromiseInterface
+    public function setOverlayedImage($uri, $offsetXPercent, $offsetYPercent, $widthPercent, $heightPercent): Promise
     {
         return $this->remoteInvoke('setOverlayedImage', [
             "uri"            => $uri,

@@ -14,7 +14,7 @@ use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
 use React\EventLoop\TimerInterface;
 use React\Promise\Deferred;
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 /**
  * JSON RPC implementation
@@ -71,7 +71,7 @@ class Client
     }
 
     /**
-     * @return PromiseInterface
+     * @return Promise
      */
     public function connect()
     {
@@ -126,9 +126,9 @@ class Client
      *
      * @param string $type
      * @param array $creationParams
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function sendCreate($type, $creationParams): PromiseInterface
+    public function sendCreate($type, $creationParams): Promise
     {
         $message = [
             'type' => $type
@@ -146,9 +146,9 @@ class Client
      * @param string $object
      * @param string $operation
      * @param array $operationParams
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function sendInvoke($object, $operation, $operationParams): PromiseInterface
+    public function sendInvoke($object, $operation, $operationParams): Promise
     {
         return $this->send('invoke', [
             'object'          => $object,
@@ -161,9 +161,9 @@ class Client
      * Release method
      *
      * @param string $object
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function sendRelease($object): PromiseInterface
+    public function sendRelease($object): Promise
     {
         return $this->send('release', [
             'object' => $object
@@ -176,9 +176,9 @@ class Client
      * @param string $object
      * @param string $type
      * @param string $onEvent
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function sendSubscribe($object, $type, $onEvent): PromiseInterface
+    public function sendSubscribe($object, $type, $onEvent): Promise
     {
         return $this->send('subscribe', [
             'object' => $object,
@@ -199,9 +199,9 @@ class Client
      * Unsubscribe method
      *
      * @param string $subscriptionId
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function sendUnsubscribe($subscriptionId): PromiseInterface
+    public function sendUnsubscribe($subscriptionId): Promise
     {
         return $this->send('unsubscribe', [
             'subscription' => $subscriptionId
@@ -223,9 +223,9 @@ class Client
      *
      * @param string $method
      * @param array $params
-     * @return PromiseInterface
+     * @return Promise
      */
-    protected function send($method, $params): PromiseInterface
+    protected function send($method, $params): Promise
     {
         $this->id++;
         if (isset($this->sessionId)) {

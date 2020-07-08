@@ -10,7 +10,7 @@
 
 namespace MgKurentoClient;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 class MediaElement extends MediaObject implements Interfaces\MediaElement
 {
@@ -18,7 +18,7 @@ class MediaElement extends MediaObject implements Interfaces\MediaElement
 
     protected $sources = [];
 
-    public function connect(Interfaces\MediaElement $sink): PromiseInterface
+    public function connect(Interfaces\MediaElement $sink): Promise
     {
         return $this->remoteInvoke('connect', ['sink' => $sink->getId()])
             ->then(function ($data) use ($sink) {

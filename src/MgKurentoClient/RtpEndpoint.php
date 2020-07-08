@@ -10,7 +10,7 @@
 
 namespace MgKurentoClient;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 use function React\Promise\reject;
 
 class RtpEndpoint extends MediaElement implements Interfaces\RtpEndpoint
@@ -20,14 +20,14 @@ class RtpEndpoint extends MediaElement implements Interfaces\RtpEndpoint
         // TODO: Implement generateOffer() method.
     }
 
-    public function processAnswer($answer): PromiseInterface
+    public function processAnswer($answer): Promise
     {
         // TODO: Implement processAnswer() method.
         return reject();
 
     }
 
-    public function processOffer($offer): PromiseInterface
+    public function processOffer($offer): Promise
     {
         // TODO: Implement processOffer() method.
         return reject();

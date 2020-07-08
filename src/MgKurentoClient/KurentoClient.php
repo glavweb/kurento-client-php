@@ -13,7 +13,7 @@ namespace MgKurentoClient;
 
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 /**
  * KurentoClient
@@ -48,9 +48,9 @@ class KurentoClient
     /**
      * Creates Client object
      *
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function connect(): PromiseInterface
+    public function connect(): Promise
     {
         return $this->jsonRpc->connect()->then(function () {
             return $this;
@@ -61,9 +61,9 @@ class KurentoClient
      * Creates a new {MediaPipeline} in the media server
      *
      * @param array $params
-     * @return PromiseInterface
+     * @return Promise
      */
-    public function createMediaPipeline(array $params = []): PromiseInterface
+    public function createMediaPipeline(array $params = []): Promise
     {
         return (new MediaPipeline($this->jsonRpc))->build($params);
     }

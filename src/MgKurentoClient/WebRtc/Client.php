@@ -18,7 +18,7 @@ use Ratchet\Client\WebSocket;
 use Ratchet\RFC6455\Messaging\Frame;
 use Ratchet\RFC6455\Messaging\MessageInterface;
 use React\EventLoop\LoopInterface;
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 /**
  * Websocket transport layer implementation
@@ -71,7 +71,7 @@ class Client extends EventEmitter
     }
 
     /**
-     * @return PromiseInterface
+     * @return Promise
      */
     public function connect()
     {

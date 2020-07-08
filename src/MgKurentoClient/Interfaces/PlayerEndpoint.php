@@ -10,11 +10,11 @@
 
 namespace MgKurentoClient\Interfaces;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 interface PlayerEndpoint extends UriEndpoint
 {
-    public function play(): PromiseInterface;
+    public function play(): Promise;
 
-    public function addEndOfStreamListener(callable $listener): PromiseInterface;
+    public function addEndOfStreamListener(callable $listener): Promise;
 }

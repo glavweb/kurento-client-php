@@ -2,11 +2,11 @@
 
 namespace MgKurentoClient;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 class WebRtcEndpoint extends MediaElement implements Interfaces\WebRtcEndpoint
 {
-    public function generateOffer(): PromiseInterface
+    public function generateOffer(): Promise
     {
         return $this->remoteInvoke('generateOffer', [])
             ->then(function($result) {
@@ -24,22 +24,22 @@ class WebRtcEndpoint extends MediaElement implements Interfaces\WebRtcEndpoint
         // TODO: Implement getRemoteSessionDescriptor() method.
     }
 
-    public function processAnswer($answer): PromiseInterface
+    public function processAnswer($answer): Promise
     {
         return $this->remoteInvoke('processAnswer', ['answer' => $answer]);
     }
 
-    public function processOffer($offer): PromiseInterface
+    public function processOffer($offer): Promise
     {
         return $this->remoteInvoke('processOffer', ['offer' => $offer]);
     }
 
-    public function gatherCandidates(): PromiseInterface
+    public function gatherCandidates(): Promise
     {
         return $this->remoteInvoke('gatherCandidates', []);
     }
 
-    public function addIceCandidate($candidate): PromiseInterface
+    public function addIceCandidate($candidate): Promise
     {
         return $this->remoteInvoke('addIceCandidate', ['candidate' => $candidate]);
     }

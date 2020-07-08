@@ -10,7 +10,7 @@
 
 namespace MgKurentoClient;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 class MediaObject implements Interfaces\MediaObject
 {
@@ -23,12 +23,12 @@ class MediaObject implements Interfaces\MediaObject
         $this->pipeline = $pipeline;
     }
 
-    public function release(): PromiseInterface
+    public function release(): Promise
     {
         return $this->remoteRelease();
     }
 
-    public function build(array $params = []): PromiseInterface
+    public function build(array $params = []): Promise
     {
         return $this->remoteCreate($this->getRemoteTypeName(), $params)
             ->then(function () {
@@ -36,7 +36,7 @@ class MediaObject implements Interfaces\MediaObject
             });
     }
 
-    public function remoteCreate($remoteType, array $params = []): PromiseInterface
+    public function remoteCreate($remoteType, array $params = []): Promise
     {
         $localParams = ($this->pipeline === $this) ? [] : ['mediaPipeline' => $this->pipeline->getId()];
 
@@ -51,25 +51,25 @@ class MediaObject implements Interfaces\MediaObject
             });
     }
 
-    public function remoteInvoke($operation, $operationParams): PromiseInterface
+    public function remoteInvoke($operation, $operationParams): Promise
     {
         return $this->pipeline->getJsonRpc()
             ->sendInvoke($this->getId(), $operation, $operationParams);
     }
 
-    public function remoteRelease(): PromiseInterface
+    public function remoteRelease(): Promise
     {
         return $this->pipeline->getJsonRpc()
             ->sendRelease($this->getId());
     }
 
-    public function remoteUnsubscribe($subscriptionId): PromiseInterface
+    public function remoteUnsubscribe($subscriptionId): Promise
     {
         return $this->pipeline->getJsonRpc()
             ->sendUnsubscribe($subscriptionId);
     }
 
-    public function remoteSubscribe($type, $onEvent): PromiseInterface
+    public function remoteSubscribe($type, $onEvent): Promise
     {
         return $this->pipeline->getJsonRpc()
             ->sendSubscribe($this->getId(), $type, $onEvent);

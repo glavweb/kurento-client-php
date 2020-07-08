@@ -10,15 +10,15 @@
 
 namespace MgKurentoClient\Interfaces;
 
-use React\Promise\PromiseInterface;
+use React\Promise\Promise;
 
 interface SdpEndpoint extends SessionEndpoint
 {
     public function generateOffer();
 
-    public function processAnswer($answer): PromiseInterface;
+    public function processAnswer($answer): Promise;
 
-    public function processOffer($offer): PromiseInterface;
+    public function processOffer($offer): Promise;
 
     public function getLocalSessionDescriptor();
 
