@@ -20,6 +20,7 @@ use Ratchet\RFC6455\Messaging\MessageInterface;
 use React\EventLoop\LoopInterface;
 use React\Promise\Promise;
 
+
 /**
  * Websocket transport layer implementation
  *
@@ -27,6 +28,14 @@ use React\Promise\Promise;
  */
 class Client extends EventEmitter
 {
+
+    public const        EVENT_CONNECTING                   = 'connecting';
+    public const        EVENT_CONNECTED                    = 'connected';
+    public const        EVENT_MESSAGE_RECEIVED             = 'message-received';
+    public const        EVENT_CONNECTION_CLOSED            = 'connection-closed';
+    public const        EVENT_CONNECTION_CLOSED_ABNORMALLY = 'connection-closed-abnormally';
+    public const        EVENT_STREAM_ERROR                 = 'stream-error';
+    public const        EVENT_CONNECTION_ERROR             = 'connection-error';
 
     /**
      * @var LoopInterface
@@ -77,33 +86,37 @@ class Client extends EventEmitter
     {
         $this->connecting = true;
         $connector        = new Connector($this->loop);
+        $this->emit(self::EVENT_CONNECTING);
 
         return $connector($this->websocketUrl . '?encoding=text')
             ->then(function (WebSocket $connection) {
                 $this->logger->info("Connected");
                 $this->connection = $connection;
-                $this->emit('connect', [$connection]);
+                $this->emit(self::EVENT_CONNECTED, [$connection]);
                 $this->connecting = false;
 
                 $connection->on('message', function (MessageInterface $msg) {
                     $this->logger->debug("Got message: {$msg}");
-                    $this->emit('message', [$msg]);
+                    $this->emit(self::EVENT_MESSAGE_RECEIVED, [$msg]);
                 });
 
-                $connection->on('close', function ($code = null, $reason = null) {
+                $connection->on('closed', function ($code = null, $reason = null) {
                     $this->logger->info("Connection closed ({$code} - {$reason})");
-                    $this->emit('close', [$code, $reason]);
+                    $this->emit(self::EVENT_CONNECTION_CLOSED, [$code, $reason]);
                     if ($code === Frame::CLOSE_ABNORMAL) {
+                        $this->logger->error("Connection closed abnormally({$code} - {$reason})");
+                        $this->emit(self::EVENT_CONNECTION_CLOSED_ABNORMALLY, [$code, $reason]);
                         $this->reconnect();
                     }
                 });
 
-                $connection->on('error', function (MessageInterface $error) {
+                $connection->on('error', function ($error) {
                     $this->logger->error("Error: {$error}");
-                    $this->emit('error', [$error]);
+                    $this->emit(self::EVENT_STREAM_ERROR, [$error]);
                 });
             }, function (Exception $e) {
                 $this->logger->error("Could not connect: {$e->getMessage()}");
+                $this->emit(self::EVENT_CONNECTION_ERROR, [$e]);
                 $this->connection = null;
                 $this->reconnect();
             });
@@ -120,7 +133,7 @@ class Client extends EventEmitter
             if (!$this->connecting) {
                 $this->connect();
             }
-            $this->once('connect', function () use ($message) {
+            $this->once(self::EVENT_CONNECTED, function () use ($message) {
                 $this->_send($message);
             });
         } else {

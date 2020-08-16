@@ -10,7 +10,9 @@
 
 namespace MgKurentoClient\JsonRpc;
 
-class KurentoClientException extends \Exception
+use Exception;
+
+class KurentoClientException extends Exception
 {
     /**
      * @var mixed

@@ -10,11 +10,16 @@
 
 namespace MgKurentoClient\JsonRpc;
 
+use Evenement\EventEmitter;
+use MgKurentoClient\WebRtc\Client as WsClient;
 use Psr\Log\LoggerInterface;
+use Ratchet\RFC6455\Messaging\MessageInterface;
 use React\EventLoop\LoopInterface;
 use React\EventLoop\TimerInterface;
 use React\Promise\Deferred;
 use React\Promise\Promise;
+use React\Stream\Util;
+use function json_decode;
 
 /**
  * JSON RPC implementation
@@ -22,23 +27,23 @@ use React\Promise\Promise;
  * @author Milan Rukavina
  *
  */
-class Client
+class Client extends EventEmitter
 {
     protected $id = 0;
 
     /**
      *
-     * @var \MgKurentoClient\WebRtc\Client
+     * @var WsClient
      */
     protected $wsClient;
 
-    protected $sessionId = null;
+    protected $sessionId     = null;
 
-    protected $deferred = [];
+    protected $deferred      = [];
 
     protected $subscriptions = [];
 
-    protected $logger = null;
+    protected $logger        = null;
 
     /**
      * @var LoopInterface
@@ -51,23 +56,50 @@ class Client
     private $pingTimer;
 
     /**
+     * @var int
+     */
+    private $timeout;
+
+    /**
+     * @var string
+     */
+    private $websocketUrl;
+
+    /**
      * Client constructor.
      *
      * @param string $websocketUrl
      * @param LoopInterface $loop
      * @param LoggerInterface $logger
+     * @param int $timeout
      */
-    public function __construct($websocketUrl, $loop, $logger)
+    public function __construct($websocketUrl, $loop, $logger, $timeout)
     {
+        $this->websocketUrl = $websocketUrl;
         $this->loop     = $loop;
         $this->logger   = $logger;
-        $this->wsClient = new \MgKurentoClient\WebRtc\Client($websocketUrl, $loop, $this->logger);
-        $this->wsClient->on('message', function ($data) {
+        $this->timeout      = $timeout;
+
+        $this->wsClient = new WsClient($websocketUrl, $loop, $this->logger);
+        $this->wsClient->on(WsClient::EVENT_MESSAGE_RECEIVED, function (MessageInterface $data) {
             $this->receive(json_decode($data, true));
         });
-        $this->wsClient->once('connect', function () {
+        $this->wsClient->on(WsClient::EVENT_CONNECTED, function () {
             $this->startPing();
         });
+        $this->wsClient->on(WsClient::EVENT_CONNECTION_CLOSED, function () {
+            $this->stopPing();
+            $this->rejectAllPromises();
+        });
+
+        Util::forwardEvents($this->wsClient, $this, [
+            WsClient::EVENT_CONNECTING,
+            WsClient::EVENT_CONNECTED,
+            WsClient::EVENT_CONNECTION_CLOSED,
+            WsClient::EVENT_CONNECTION_CLOSED_ABNORMALLY,
+            WsClient::EVENT_STREAM_ERROR,
+            WsClient::EVENT_CONNECTION_ERROR
+        ]);
     }
 
     /**
@@ -244,7 +276,14 @@ class Client
         $deferred                  = new Deferred();
         $this->deferred[$this->id] = $deferred;
 
-        return $deferred->promise();
+        $timer = $this->loop->addTimer($this->timeout, function () use ($deferred) {
+            $deferred->reject(new KurentoClientException('RPC timeout'));
+        });
+
+        return $deferred->promise()
+            ->always(function () use ($timer) {
+                $this->loop->cancelTimer($timer);
+            });
     }
 
     private function startPing()
@@ -254,5 +293,19 @@ class Client
                 $this->send('ping', []);
             }
         });
+    }
+
+    private function stopPing()
+    {
+        $this->loop->cancelTimer($this->pingTimer);
+    }
+
+    private function rejectAllPromises()
+    {
+        /** @var Deferred $deferredItem */
+        foreach ($this->deferred as $deferredItem) {
+            $deferredItem->reject(new KurentoClientException('Connection closed'));
+        }
+        $this->deferred = [];
     }
 }

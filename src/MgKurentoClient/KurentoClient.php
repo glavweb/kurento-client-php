@@ -11,16 +11,19 @@
 
 namespace MgKurentoClient;
 
+use Evenement\EventEmitter;
+use MgKurentoClient\WebRtc\Client as WsClient;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
 use React\Promise\Promise;
+use React\Stream\Util;
 
 /**
  * KurentoClient
  *
  * @author Milan Rukavina
  */
-class KurentoClient
+class KurentoClient extends EventEmitter
 {
 
     /**
@@ -38,11 +41,21 @@ class KurentoClient
      * @param string $websocketUrl
      * @param LoopInterface $loop
      * @param LoggerInterface $logger
+     * @param integer $timeout
      */
-    public function __construct($websocketUrl, $loop, $logger)
+    public function __construct($websocketUrl, $loop, $logger, $timeout = 30)
     {
         $this->logger  = $logger;
-        $this->jsonRpc = new JsonRpc\Client($websocketUrl, $loop, $this->logger);
+        $this->jsonRpc = new JsonRpc\Client($websocketUrl, $loop, $this->logger, $timeout);
+
+        Util::forwardEvents($this->jsonRpc, $this, [
+            WsClient::EVENT_CONNECTING,
+            WsClient::EVENT_CONNECTED,
+            WsClient::EVENT_CONNECTION_CLOSED,
+            WsClient::EVENT_CONNECTION_CLOSED_ABNORMALLY,
+            WsClient::EVENT_STREAM_ERROR,
+            WsClient::EVENT_CONNECTION_ERROR
+        ]);
     }
 
     /**
