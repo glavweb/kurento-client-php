@@ -83,7 +83,7 @@ class Client
      *
      * @param array $data
      * @return mixed
-     * @throws Exception
+     * @throws KurentoClientException
      */
     public function receive($data)
     {
@@ -112,13 +112,14 @@ class Client
         }
         if (isset($data['error']) && isset($data['id']) && isset($this->deferred[$data['id']])) {
             $deferred = $this->deferred[$data['id']];
-            $deferred->reject($data['error']);
+            $error    = $data['error'];
+            $deferred->reject(new KurentoClientException($error['message'] ?? '', $error['code'] ?? 0, $error['data'] ?? null));
             unset($this->deferred[$data['id']]);
 
             return;
         }
 
-        throw new Exception('Json deferred not found');
+        throw new KurentoClientException('Json deferred not found');
     }
 
     /**
