@@ -14,7 +14,7 @@ use React\Promise\Promise;
 
 class MediaObject implements Interfaces\MediaObject
 {
-    protected $id = null;
+    protected $id       = null;
 
     protected $pipeline = null;
 
@@ -28,20 +28,20 @@ class MediaObject implements Interfaces\MediaObject
         return $this->remoteRelease();
     }
 
-    public function build(array $params = []): Promise
+    public function build(array $params = [], array $properties = []): Promise
     {
-        return $this->remoteCreate($this->getRemoteTypeName(), $params)
+        return $this->remoteCreate($this->getRemoteTypeName(), $params, $properties)
             ->then(function () {
                 return $this;
             });
     }
 
-    public function remoteCreate($remoteType, array $params = []): Promise
+    public function remoteCreate($remoteType, array $params = [], array $properties = []): Promise
     {
         $localParams = ($this->pipeline === $this) ? [] : ['mediaPipeline' => $this->pipeline->getId()];
 
         return $this->pipeline->getJsonRpc()
-            ->sendCreate($remoteType, array_merge($localParams, $params))
+            ->sendCreate($remoteType, array_merge($localParams, $params), $properties)
             ->then(function ($data) {
                 if (isset($data['value'])) {
                     $this->id = $data['value'];

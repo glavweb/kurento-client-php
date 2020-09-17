@@ -159,15 +159,19 @@ class Client extends EventEmitter
      *
      * @param string $type
      * @param array $creationParams
+     * @param array $properties
      * @return Promise
      */
-    public function sendCreate($type, $creationParams): Promise
+    public function sendCreate($type, $creationParams, $properties): Promise
     {
         $message = [
             'type' => $type
         ];
         if (isset($creationParams) && count($creationParams)) {
             $message['constructorParams'] = $creationParams;
+        }
+        if (isset($properties) && count($properties)) {
+            $message['properties'] = $properties;
         }
 
         return $this->send('create', $message);

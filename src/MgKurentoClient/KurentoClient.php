@@ -74,10 +74,11 @@ class KurentoClient extends EventEmitter
      * Creates a new {MediaPipeline} in the media server
      *
      * @param array $params
+     * @param array $properties
      * @return Promise
      */
-    public function createMediaPipeline(array $params = []): Promise
+    public function createMediaPipeline(array $params = [], array $properties = []): Promise
     {
-        return (new MediaPipeline($this->jsonRpc))->build($params);
+        return (new MediaPipeline($this->jsonRpc))->build($params, $properties);
     }
 }
